@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en" >
+<head>
+  <meta charset="UTF-8" />
+  <title>Emoji Cabin Escape</title>
+  <style>
+    body {
+      background: #2b1d0e;
+      color: white;
+      font-family: Arial, sans-serif;
+      margin: 0;
+      user-select: none;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      height: 100vh;
+      justify-content: center;
+    }
+    #game {
+      background: #3a2a12;
+      border: 5px solid #fff;
+      width: 400px;
+      height: 350px;
+      border-radius: 15px;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      align-content: center;
+      gap: 20px;
+      font-size: 50px;
+      text-align: center;
+      padding: 20px;
+      box-sizing: border-box;
+    }
+    .clickable {
+      cursor: pointer;
+      user-select: none;
+      width: 70px;
+      height: 70px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: rgba(0,0,0,0.4);
+      border-radius: 12px;
+      border: 2px solid rgba(255,255,255,0.4);
+      transition: border-color 0.3s;
+    }
+    .clickable:hover {
+      border-color: #ffd700;
+    }
+    #inventory {
+      margin-top: 15px;
+      background: #111;
+      width: 400px;
+      padding: 10px;
+      border-radius: 12px;
+      min-height: 50px;
+      font-size: 24px;
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      user-select: text;
+      color: #ddd;
+    }
+    .item {
+      background: #333;
+      padding: 5px 10px;
+      border-radius: 8px;
+      font-size: 24px;
+    }
+    #message {
+      margin-top: 10px;
+      height: 30px;
+      font-size: 20px;
+      text-align: center;
+      min-height: 30px;
+      user-select: none;
+      color: #ffd700;
+    }
+    #popup {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: #222;
+      padding: 25px;
+      border: 3px solid #fff;
+      border-radius: 20px;
+      max-width: 350px;
+      font-size: 22px;
+      text-align: center;
+      z-index: 10;
+      display: none;
+      user-select: none;
+    }
+    #popup button {
+      margin-top: 15px;
+      font-size: 20px;
+      padding: 8px 20px;
+      cursor: pointer;
+      border-radius: 10px;
+      border: none;
+      background: #444;
+      color: white;
+      user-select: none;
+    }
+    #popup input[type="text"] {
+      font-size: 22px;
+      width: 80%;
+      padding: 7px;
+      margin-top: 10px;
+      border-radius: 10px;
+      border: none;
+      text-align: center;
+      user-select: auto;
+    }
+    #navButtons {
+      margin-top: 20px;
+      display: flex;
+      gap: 40px;
+      justify-content: center;
+      user-select: none;
+    }
+    #navButtons button {
+      font-size: 50px;
+      cursor: pointer;
+      background: none;
+      border: none;
+      color: white;
+      transition: color 0.3s;
+      user-select: none;
+    }
+    #navButtons button:hover {
+      color: #ffd700;
+    }
+  </style>
+</head>
+<body>
+  <div id="game"></div>
+
+  <div id="inventory"><strong>Inventory:</strong></div>
+  <div id="message"></div>
+
+  <div id="popup"></div>
+
+  <div id="navButtons">
+    <button id="toRoom1" title="Cabinet Room">🗄️</button>
+    <button id="toRoom2" title="Bedroom">🛏️</button>
+    <button id="toRoom3" title="Entry Doorway">🚪</button>
+  </div>
+
+  <script>
+    const game = document.getElementById('game');
+    const inventoryDiv = document.getElementById('inventory');
+    const messageDiv = document.getElementById('message');
+    const popup = document.getElementById('popup');
+
+    let currentRoom = 1;
+    let inventory = [];
+    let phoneUnlocked = false;
+    let sawPhotoClue = false;
+    let keyTaken = false;
+
+    function clearGame() {
+      game.innerHTML = '';
+      messageDiv.innerText = '';
+      popup.style.display = 'none';
+    }
+
+    function updateInventory() {
+      inventoryDiv.innerHTML = "<strong>Inventory:</strong> " +
+        (inventory.length ? inventory.map(i => `<div class='item'>${i}</div>`).join('') : " (empty)");
+    }
+
+    function showMessage(msg) {
+      messageDiv.innerText = msg;
+      setTimeout(() => {
+        if (messageDiv.innerText === msg) messageDiv.innerText = '';
+      }, 2500);
+    }
+
+    function showPopup(content) {
+      popup.innerHTML = content + "<br><button onclick='closePopup()'>Back</button>";
+      popup.style.display = 'block';
+    }
+
+    function closePopup() {
+      popup.style.display = 'none';
+    }
+
+    // Create emoji clickable element helper
+    function createClickable(id, emoji, label) {
+      const div = document.createElement('div');
+      div.id = id;
+      div.className = 'clickable';
+      div.title = label;
+      div.textContent = emoji;
+      return div;
+    }
+
+    // Room 1: Cabinets room (6 cabinets, one has paper)
+    function loadRoom1() {
+      clearGame();
+      currentRoom = 1;
+      for (let i = 0; i < 6; i++) {
+        let cabinet = createClickable(
+          'cabinet' + i,
+          '🗄️',
+          'Cabinet #' + (i+1)
+        );
+        game.appendChild(cabinet);
+      }
+
+      // Paper emoji hidden until cabinet 3 clicked
+      let paper = createClickable('paper', '📄', 'Paper with code');
+      paper.style.display = 'none';
+      game.appendChild(paper);
+
+      for (let i = 0; i < 6; i++) {
+        const cab = document.getElementById('cabinet' + i);
+        cab.addEventListener('click', () => {
+          showMessage("You searched cabinet " + (i+1) + ".");
+          if (i === 2 && paper.style.display === 'none') {
+            showMessage("You found a paper!");
+            paper.style.display = 'flex';
+          }
+        });
+      }
+
+      paper.addEventListener('click', () => {
+        showPopup("You found a paper with a code:<br><b>6550</b>");
+      });
+    }
+
+    // Room 2: Bedroom with bed and phone
+    function loadRoom2() {
+      clearGame();
+      currentRoom = 2;
+
+      // Bed emoji just for vibe, non-clickable
+      let bed = document.createElement('div');
+      bed.textContent = '🛏️';
+      bed.style.fontSize = '90px';
+      bed.style.margin = '0 auto 20px auto';
+      bed.style.width = '100%';
+      bed.style.textAlign = 'center';
+      bed.style.userSelect = 'none';
+      game.appendChild(bed);
+
+      // Phone emoji clickable
+      let phone = createClickable('phone', '📱', 'Phone on bed');
+      phone.style.margin = 'auto';
+      phone.style.fontSize = '70px';
+      phone.style.width = '80px';
+      phone.style.height = '80px';
+      game.appendChild(phone);
+
+      phone.addEventListener('click', () => {
+        if (!phoneUnlocked) {
+          showPopup(`
+            Enter 4-digit code:<br>
+            <input type="text" id="codeInput" maxlength="4" autofocus><br>
+            <button onclick="checkPhoneCode()">Unlock</button>
+          `);
+        } else {
+          showPopup("Phone unlocked!<br>You see a message: <b>Key is under the doormat</b>.");
+          sawPhotoClue = true;
+        }
+      });
+    }
+
+    window.checkPhoneCode = function() {
+      const input = document.getElementById('codeInput').value.trim();
+      if (input === '6550') {
+        phoneUnlocked = true;
+        popup.innerHTML = "Phone unlocked!<br><button onclick='closePopup()'>Back</button>";
+        sawPhotoClue = true;
+      } else {
+        showMessage("Wrong code.");
+      }
+    }
+
+    // Room 3: Entry doorway with door and doormat
+    function loadRoom3() {
+      clearGame();
+      currentRoom = 3;
+
+      // Door emoji clickable
+      let door = createClickable('door', '🚪', 'Front Door');
+      door.style.fontSize = '90px';
+      door.style.width = '90px';
+      door.style.height = '90px';
+      game.appendChild(door);
+
+      // Doormat emoji only visible if phone unlocked
+      let doormat = createClickable('doormat', '🧼', 'Doormat');
+      doormat.style.display = phoneUnlocked ? 'flex' : 'none';
+      doormat.style.fontSize = '70px';
+      doormat.style.width = '70px';
+      doormat.style.height = '70px';
+      doormat.style.margin = '20px auto 0 auto';
+      game.appendChild(doormat);
+
+      // Key emoji hidden until doormat clicked
+      let key = createClickable('key', '🔑', 'Front Door Key');
+      key.style.display = 'none';
+      key.style.fontSize = '60px';
+      key.style.width = '60px';
+      key.style.height = '60px';
+      key.style.margin = '20px auto 0 auto';
+      game.appendChild(key);
+
+      door.addEventListener('click', () => {
+        if (inventory.includes("Front Door Key")) {
+          showPopup("You unlocked the front door, got in your car, and escaped! 🚗🎉");
+          door.style.borderColor = 'lime';
+        } else {
+          showMessage("The door is locked. You need the front door key.");
+        }
+      });
+
+      doormat.addEventListener('click', () => {
+        if (!keyTaken && phoneUnlocked) {
+          showMessage("You lifted the doormat and found a key!");
+          key.style.display = 'flex';
+          keyTaken = false;
+        } else if (!phoneUnlocked) {
+          showMessage("You see nothing special.");
+        } else {
+          showMessage("You already found the key here.");
+        }
+      });
+
+      key.addEventListener('click', () => {
+        if (!keyTaken) {
+          inventory.push("Front Door Key");
+          updateInventory();
+          showMessage("You picked up the front door key.");
+          key.style.display = 'none';
+          keyTaken = true;
+        }
+      });
+    }
+
+    // Nav buttons event listeners
+    document.getElementById('toRoom1').addEventListener('click', () => loadRoom1());
+    document.getElementById('toRoom2').addEventListener('click', () => loadRoom2());
+    document.getElementById('toRoom3').addEventListener('click', () => loadRoom3());
+
+    // Start game in room 1
+    updateInventory();
+    loadRoom1();
+  </script>
+</body>
+</html>
